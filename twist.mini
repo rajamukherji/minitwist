@@ -1,0 +1,152 @@
+let WordSets := {}
+let BySize := {}
+
+with File := file(Args[1], "r") do
+	loop
+		let Word := (while File:read):trim
+		Word:length > 2 or next
+		let Sorted := sum(list(Word):sort)
+		let WordSet := WordSets[Sorted, /list]:put(Word)
+	end
+	File:close
+end
+
+for Sorted in key(WordSets) do
+	BySize[Sorted:length, /list]:put(Sorted)
+end
+
+def (Stdin, Stdout) in import("io/terminal")
+
+fun display(Words) do
+	let NumRows := (Words:size + 6) div 7
+	let Rows := list(1 .. NumRows, /map)
+	let ColSizes := list(1 .. 7;) 0
+	let I := 1
+	for Word, Blank in Words; I in &(1 .. NumRows) do
+		let Row := Rows[I]
+		let Length := Word:length
+		Row[Word] := Blank
+		ColSizes[Row:size] := old max Length
+	end
+	let NumCols := Rows[1]:size
+	Stdout:write("\n ╭─")
+	for I, ColSize in ColSizes limit NumCols do
+		for J in 1 .. ColSize do
+			Stdout:write("─")
+		end
+		Stdout:write(if I = NumCols then "─╮" else "─┬─" end)
+	end
+	Stdout:write("\n")
+	for I, Row in Rows do
+		Stdout:write(" │")
+		for I in 1 .. NumCols; Word, Blank in Row & fold(@"") do
+			Stdout:write(" ")
+			Stdout:write(Blank)
+			for J in Word:length .. ColSizes[I] do
+				Stdout:write(" ")
+			end
+			Stdout:write("│")
+		end
+		Stdout:write("\n")
+		let (A, B) := if I = NumRows then
+			Stdout:write(" ╰─")
+			("─┴─", "─╯")
+		else
+			Stdout:write(" ├─")
+			("─┼─", "─┤")
+		end
+		for I, ColSize in ColSizes limit NumCols do
+			for J in 1 .. ColSize do
+				Stdout:write("─")
+			end
+			Stdout:write(if I = NumCols then B else A end)
+		end
+		Stdout:write("\n")
+	end
+	Stdout:write("\n")
+end
+
+fun subwords(Word) do
+	if let First := Word[1] then
+		for SubWord in subwords(Word[2, 0]) do
+			susp First + SubWord
+			susp SubWord
+		end
+	else
+		susp ""
+	end
+end
+
+:>def Placeholders := "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
+:>let Blanks := list(1 .. BySize:size; I) '\e[34m{Placeholders[1, I + 1]}\e[0m'
+let Blanks := list(1 .. BySize:size; I) '\e[34m{sum(1 .. I;) "."}\e[0m'
+
+random::seed(time():nsec)
+loop
+	Stdout:write("Enter word size: ")
+	let Size := integer(Stdin:read:trim)
+	let Sorted := BySize[Size]:random or exit
+	let Length := Sorted:length
+	let Words := {}
+	for SubWord in subwords(Sorted) do
+		Words:grow(WordSets[SubWord] => (2, 0))
+	end
+	for Word, Blank in Words do
+		Blank := Blanks[Word:length]
+	end
+	Words:sort(; A, B) do
+		A:length < B:length and ret B
+		A:length = B:length and ret A < B
+		ret nil
+	end
+	var Left := Words:size
+	let Letters := list(Sorted):shuffle
+	var Guess := ""
+	loop
+		Stdout:write('\e[2J\e[H')
+		display(Words)
+		if Guess in Words then
+			Stdout:write('\e[32m{Guess} is correct!\e[0m\n\n')
+		elseif Guess != "" then
+			Stdout:write('\e[31m{Guess} is incorrect!\e[0m\n\n')
+		end
+		Stdout:write('     \e[33m{Letters, " "}\e[0m\n')
+		if Guess in Words then Words[Guess] := Guess end
+		Stdout:write("\nEnter word: ")
+		Guess := Stdin:read:trim
+		switch Guess: string
+		case "??" do
+			for Word, Blank in Words do
+				if Blank != Word then
+					Blank := '\e[31m{Word}\e[0m'
+				end
+			end
+			exit
+		case "?" do
+			for Word, Blank in Words do
+				if Blank != Word then
+					let I := integer::random(Word:length)
+					Blank := old:replace(I + 5, Word[I])
+				end
+			end
+			Guess := ""
+		case "" do
+			Letters:shuffle
+		else
+			if Guess in Words then
+				if Words[Guess] then
+					Words[Guess] := '\e[32m{Guess}\e[0m'
+					Left := old - 1
+				end
+			end
+			while Left > 0
+		end
+	end
+	Stdout:write('\e[2J\e[H')
+	display(Words)
+	if Left = 0 then
+		Stdout:write('\e[32mYou found all {Words:size} words!\e[0m\n\n')
+	else
+		Stdout:write('\e[31mYou missed {Left} out of {Words:size} words!\e[0m\n\n')
+	end
+end
