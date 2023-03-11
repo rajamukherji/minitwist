@@ -81,7 +81,18 @@ end
 :>let Blanks := list(1 .. BySize:size; I) '\e[34m{Placeholders[1, I + 1]}\e[0m'
 let Blanks := list(1 .. BySize:size; I) '\e[34m{sum(1 .. I;) "."}\e[0m'
 
+class: player(:name, :next, :score)
+
+let Players := [player(Args[2])]
+for Name in Args skip 2 do
+	let Player := player(Name)
+	Players[-1]:next := Player
+	Players:put(Player)
+end
+Players[-1]:next := Players[1]
+
 random::seed(time():nsec)
+var Player := Players[1]
 loop
 	Stdout:write("Enter word size: ")
 	let Size := integer(Stdin:read:trim)
@@ -99,20 +110,28 @@ loop
 		A:length = B:length and ret A < B
 		ret nil
 	end
+	for Player in Players do
+		Player:score := 0
+	end
 	var Left := Words:size
 	let Letters := list(Sorted):shuffle
 	var Guess := ""
 	loop
 		Stdout:write('\e[2J\e[H')
 		display(Words)
-		if Guess in Words then
+		if Words[Guess] = Guess then
+			Stdout:write('\e[31m{Guess} already found!\e[0m\n\n')
+			Player := Player:next
+		elseif Guess in Words then
 			Stdout:write('\e[32m{Guess} is correct!\e[0m\n\n')
+			Player:score := old + (Guess:length ^ 2)
 		elseif Guess != "" then
 			Stdout:write('\e[31m{Guess} is incorrect!\e[0m\n\n')
+			Player := Player:next
 		end
 		Stdout:write('     \e[33m{Letters, " "}\e[0m\n')
 		if Guess in Words then Words[Guess] := Guess end
-		Stdout:write("\nEnter word: ")
+		Stdout:write('\n\e[32m{Player:name}\e[0m enter word: ')
 		Guess := Stdin:read:trim
 		switch Guess: string
 		case "??" do
@@ -146,5 +165,8 @@ loop
 		Stdout:write('\e[32mYou found all {Words:size} words!\e[0m\n\n')
 	else
 		Stdout:write('\e[31mYou missed {Left} out of {Words:size} words!\e[0m\n\n')
+	end
+	for Player in Players do
+		Stdout:write('\e[32m{Player:name}\e[0m scored {Player:score}\n')
 	end
 end
