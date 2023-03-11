@@ -105,7 +105,9 @@ loop
 	loop
 		Stdout:write('\e[2J\e[H')
 		display(Words)
-		if Guess in Words then
+		if Words[Guess] = Guess then
+			Stdout:write('\e[31m{Guess} already found!\e[0m\n\n')
+		elseif Guess in Words then
 			Stdout:write('\e[32m{Guess} is correct!\e[0m\n\n')
 		elseif Guess != "" then
 			Stdout:write('\e[31m{Guess} is incorrect!\e[0m\n\n')
