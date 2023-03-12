@@ -1,0 +1,227 @@
+import: uev("event/uev")
+def (Stdin, Stdout) in import("io/terminal")
+
+let WordSets := {}
+let BySize := {}
+
+with File := file(Args[1], "r") do
+	loop
+		let Word := (while File:read):trim
+		Word:length > 2 or next
+		let Sorted := sum(list(Word):sort)
+		let WordSet := WordSets[Sorted, /list]:put(Word)
+	end
+	File:close
+end
+
+for Sorted in key(WordSets) do
+	BySize[Sorted:length, /list]:put(Sorted)
+end
+
+class: player(:name, :score, :next)
+
+meth <(A: player, B: player) A:score < B:score
+
+let Players := [player(Args[3], 0)]
+for Name in Args skip 3 do
+	let Player := player(Name, 0)
+	Players[-1]:next := Player
+	Players:put(Player)
+end
+Players[-1]:next := Players[1]
+
+fun display(Words, Guess, Letters, Players) do
+	Stdout:write('\e[2J\e[H')
+	let NumRows := (Words:size + 6) div 7
+	let Rows := list(1 .. NumRows, /map)
+	let ColSizes := list(1 .. 7;) 0
+	let I := 1
+	for Word, Blank in Words; I in &(1 .. NumRows) do
+		let Row := Rows[I]
+		let Length := Word:length
+		Row[Word] := Blank
+		ColSizes[Row:size] := old max Length
+	end
+	let NumCols := Rows[1]:size
+	Stdout:write("\n ╭─")
+	for I, ColSize in ColSizes limit NumCols do
+		for J in 1 .. ColSize do
+			Stdout:write("─")
+		end
+		Stdout:write(if I = NumCols then "─╮" else "─┬─" end)
+	end
+	Stdout:write("\n")
+	for I, Row in Rows do
+		Stdout:write(" │")
+		for I in 1 .. NumCols; Word, Blank in Row & fold(@"") do
+			Stdout:write(" ")
+			Stdout:write(Blank)
+			for J in Word:length .. ColSizes[I] do
+				Stdout:write(" ")
+			end
+			Stdout:write("│")
+		end
+		Stdout:write("\n")
+		let (A, B) := if I = NumRows then
+			Stdout:write(" ╰─")
+			("─┴─", "─╯")
+		else
+			Stdout:write(" ├─")
+			("─┼─", "─┤")
+		end
+		for I, ColSize in ColSizes limit NumCols do
+			for J in 1 .. ColSize do
+				Stdout:write("─")
+			end
+			Stdout:write(if I = NumCols then B else A end)
+		end
+		Stdout:write("\n")
+	end
+	if Words[Guess] = Guess then
+		Stdout:write('\e[31m{Guess} already found!\e[0m\n')
+		Letters:shuffle
+		Player := Player:next
+	elseif Guess in Words then
+		Stdout:write('\e[32m{Guess} is correct!\e[0m\n')
+	elseif Guess != "" then
+		Stdout:write('\e[31m{Guess} is incorrect!\e[0m\n')
+		Letters:shuffle
+		Player := Player:next
+	end
+	for Player in Players do
+		Stdout:write('\e[32m{Player:name}\e[0m: {Player:score}\t')
+	end
+	Stdout:write("\n")
+	Stdout:write('     \e[33m{Letters, " "}\e[0m\n')
+	if Guess in Words then Words[Guess] := Guess end
+end
+
+fun subwords(Word) do
+	if let First := Word[1] then
+		for SubWord in subwords(Word[2, 0]) do
+			susp First + SubWord
+			susp SubWord
+		end
+	else
+		susp ""
+	end
+end
+
+:>def Placeholders := "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
+:>let Blanks := list(1 .. BySize:size; I) '\e[34m{Placeholders[1, I + 1]}\e[0m'
+let Blanks := list(1 .. BySize:size; I) '\e[34m{sum(1 .. I;) "."}\e[0m'
+
+let NumRounds := integer(Args[2])
+
+random::seed(time():nsec)
+var Player := Players[1]
+var Countdown := nil
+
+let Uev := uev()
+
+def Timeout := 30
+
+Uev:timer(1000, 1000; Event) do
+	if Countdown then
+		Countdown := old - 1
+		print('\e[s\e[0G[{Countdown, "%2d"}s] \e[32m{Player:name}\e[0m enter word: \e[u')
+		if Countdown = 0 then
+			Player := Player:next
+			Countdown := Timeout
+			print('\e[2K\e[0G[{Countdown, "%2d"}s] \e[32m{Player:name}\e[0m enter word: ')
+		end
+	end
+end
+
+var OnInput
+var Round := 0
+
+fun start_round(Size) do
+	Round := old + 1
+	let Sorted := BySize[Size]:random or ret
+	let Length := Sorted:length
+	let Words := {}
+	for SubWord in subwords(Sorted) do
+		Words:grow(WordSets[SubWord] => (2, 0))
+	end
+	for Word, Blank in Words do
+		Blank := Blanks[Word:length]
+	end
+	Words:sort(; A, B) do
+		A:length < B:length and ret B
+		A:length = B:length and ret A < B
+		ret nil
+	end
+	Player := min(Players)
+	var Left := Words:size
+	let Letters := list(Sorted):shuffle
+
+	display(Words, "", Letters, Players)
+	OnInput := guess(Words, _, Letters, Players)
+	Countdown := Timeout
+	print('\e[2K\e[0G[{Countdown, "%2d"}s] \e[32m{Player:name}\e[0m enter word: ')
+end
+
+fun new_round() do
+	Round < NumRounds or ret Uev:exit
+	Stdout:write("Enter word size: ")
+	Countdown := nil
+	OnInput := fun(Size) do
+		start_round(integer(Size))
+	end
+end
+
+fun guess(Words, Guess, Letters, Players) do
+	let Left := count(Words =>? (!=))
+	switch Guess: string
+	case "??" do
+		for Word, Blank in Words do
+			if Blank != Word then
+				Blank := '\e[31m{Word}\e[0m'
+			end
+		end
+		Stdout:write('\e[31mYou missed {Left} out of {Words:size} words!\e[0m\n\n')
+		ret new_round()
+	case "?" do
+		for Word, Blank in Words do
+			if Blank != Word then
+				Player:score := old - 1
+				let I := integer::random(Word:length)
+				Blank := old:replace(I + 5, Word[I])
+			end
+		end
+		Guess := ""
+	case "" do
+		Letters:shuffle
+		display(Words, Guess, Letters, Players)
+		print('\e[2K\e[0G[{Countdown, "%2d"}s] \e[32m{Player:name}\e[0m enter word: ')
+	else
+		if Guess != Words[Guess] then
+			Player:score := old + (count(Words[Guess] ->? (_ = ".")) ^ 2)
+			Words[Guess] := '\e[32m{Guess}\e[0m'
+		end
+		if some(Words =>? (!=)) then
+			display(Words, Guess, Letters, Players)
+			Countdown := Timeout
+			print('\e[2K\e[0G[{Countdown, "%2d"}s] \e[32m{Player:name}\e[0m enter word: ')
+		else
+			Stdout:write('\e[32mYou found all {Words:size} words!\e[0m\n\n')
+			ret new_round()
+		end
+	end
+end
+
+Uev:io(Stdin, uev::flags::Read; Event) do
+	switch Event: uev::flags
+	case uev::flags::Read do
+		OnInput(Stdin:read:trim)
+	end
+end
+
+new_round()
+
+Uev:run
+
+for Player in Players do
+	Stdout:write('\e[32m{Player:name}\e[0m scored {Player:score}\n')
+end
