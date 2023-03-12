@@ -190,7 +190,8 @@ fun guess(Words, Guess, Letters, Players) do
 				Blank := old:replace(I + 5, Word[I])
 			end
 		end
-		Guess := ""
+		display(Words, "", Letters, Players)
+		print('\e[2K\e[0G[{Countdown, "%2d"}s] \e[32m{Player:name}\e[0m enter word: ')
 	case "" do
 		Letters:shuffle
 		display(Words, Guess, Letters, Players)
