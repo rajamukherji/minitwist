@@ -22,8 +22,10 @@ class: player(:name, :score, :next)
 
 meth <(A: player, B: player) A:score < B:score
 
-let Players := [player(Args[3], 0)]
-for Name in Args skip 3 do
+let NumRounds := integer(Args[2])
+let Timeout := integer(Args[3])
+let Players := [player(Args[4], 0)]
+for Name in Args skip 4 do
 	let Player := player(Name, 0)
 	Players[-1]:next := Player
 	Players:put(Player)
@@ -111,15 +113,11 @@ end
 :>let Blanks := list(1 .. BySize:size; I) '\e[34m{Placeholders[1, I + 1]}\e[0m'
 let Blanks := list(1 .. BySize:size; I) '\e[34m{sum(1 .. I;) "."}\e[0m'
 
-let NumRounds := integer(Args[2])
-
 random::seed(time():nsec)
 var Player := Players[1]
 var Countdown := nil
 
 let Uev := uev()
-
-def Timeout := 10
 
 Uev:timer(1000, 1000; Event) do
 	if Countdown then
