@@ -119,7 +119,7 @@ var Countdown := nil
 
 let Uev := uev()
 
-def Timeout := 30
+def Timeout := 10
 
 Uev:timer(1000, 1000; Event) do
 	if Countdown then
@@ -180,6 +180,7 @@ fun guess(Words, Guess, Letters, Players) do
 				Blank := '\e[31m{Word}\e[0m'
 			end
 		end
+		display(Words, "", Letters, Players)
 		Stdout:write('\e[31mYou missed {Left} out of {Words:size} words!\e[0m\n\n')
 		ret new_round()
 	case "?" do
@@ -201,8 +202,8 @@ fun guess(Words, Guess, Letters, Players) do
 			Player:score := old + (count(Words[Guess] ->? (_ = ".")) ^ 2)
 			Words[Guess] := '\e[32m{Guess}\e[0m'
 		end
+		display(Words, Guess, Letters, Players)
 		if some(Words =>? (!=)) then
-			display(Words, Guess, Letters, Players)
 			Countdown := Timeout
 			print('\e[2K\e[0G[{Countdown, "%2d"}s] \e[32m{Player:name}\e[0m enter word: ')
 		else
