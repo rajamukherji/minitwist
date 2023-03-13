@@ -162,9 +162,10 @@ end
 
 fun new_round() do
 	Round < NumRounds or ret Uev:exit
-	Stdout:write("Enter word size: ")
+	Stdout:write("\e[2J\e[9999;9999H\e[6n\e[2J\e[0;0HEnter word size: ")
 	Countdown := nil
 	OnInput := fun(Size) do
+		print('Size = {list(Size)}\n')
 		start_round(integer(Size))
 	end
 end
@@ -211,7 +212,7 @@ fun guess(Words, Guess, Letters, Players) do
 	end
 end
 
-Uev:io(Stdin, uev::flags::Read; Event) do
+Uev:io(Stdin, uev::flags::Read + uev::flags::Edge; Event) do
 	switch Event: uev::flags
 	case uev::flags::Read do
 		OnInput(Stdin:read:trim)
