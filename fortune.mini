@@ -1,0 +1,133 @@
+def (Stdin, Stdout) in import("io/terminal")
+
+let Phrases := list(;) do
+	let File := file(Args[1], "r")
+	var Category := File:read:trim
+	loop
+		let Phrase := (while File:read):trim
+		if Phrase = "" then
+			Category := (while File:read):trim
+		else
+			susp (Phrase, Category)
+		end
+	end
+end
+
+class: player(:name, :score, :next)
+
+meth <(A: player, B: player) A:score < B:score
+
+let NumRounds := integer(Args[2])
+let Players := [player(Args[3], 0)]
+for Name in Args skip 3 do
+	let Player := player(Name, 0)
+	Players[-1]:next := Player
+	Players:put(Player)
+end
+Players[-1]:next := Players[1]
+
+fun display(Words, MaxWidth) do
+	Stdout:write('\e[2J\e[H')
+	let Rows := [[]]
+	var Row := Rows[1]
+	var Width := 0
+	for Word in Words do
+		if Width + (Word:length * 4 + 1) > MaxWidth then
+			Rows:put(Row := [])
+			Width := 0
+		end
+		Row:put(Word)
+		Width := old + (Word:length * 4 + 1)
+	end
+	for Row in Rows do
+		let Padding := (MaxWidth - (4 * sum(Row, :length)) - Row:length) div 2
+		for I in 1 .. Padding do Stdout:write(" ") end
+		for Word in Row do
+			Stdout:write("┌───")
+			for Letter in Word skip 1 do
+				Stdout:write("┬───")
+			end
+			Stdout:write("┐ ")
+		end
+		Stdout:write("\n")
+		for I in 1 .. Padding do Stdout:write(" ") end
+		for Word in Row do
+			Stdout:write('│ {Word[1]} ')
+			for Letter in Word skip 1 do
+				Stdout:write('│ {Letter} ')
+			end
+			Stdout:write("│ ")
+		end
+		Stdout:write("\n")
+		for I in 1 .. Padding do Stdout:write(" ") end
+		for Word in Row do
+			Stdout:write("└───")
+			for Letter in Word skip 1 do
+				Stdout:write("┴───")
+			end
+			Stdout:write("┘ ")
+		end
+		Stdout:write("\n")
+	end
+end
+
+fun display2(Words, MaxWidth) do
+	:>Stdout:write('\e[2J\e[H')
+	let Rows := [[]]
+	var Row := Rows[1]
+	var Width := 0
+	for Word in Words do
+		if Width + (Word:length * 4 + 1) > MaxWidth then
+			Rows:put(Row := [])
+			Width := 0
+		end
+		Row:put(Word)
+		Width := old + (Word:length * 4 + 1)
+	end
+	let Grid := array::int8([Rows:length + 1, MaxWidth])
+
+	let Letters := []
+	for Y, Row in Rows do
+		let Padding := (MaxWidth - (3 * sum(Row, :length)) - (2 * Row:length)) div 2
+		var X := Padding + 1
+		for Word in Row do
+			Grid[Y, X up 3] := old + $[8, 12, 4]
+			Grid[Y + 1, X up 3] := old + $[2, 3, 1]
+			X := old + 3
+			for Letter in Word skip 1 do
+				Grid[Y, X up 3] := old + $[8, 12, 4]
+				Grid[Y + 1, X up 3] := old + $[2, 3, 1]
+				X := old + 3
+			end
+			X := old + 2
+		end
+	end
+
+	def Blocks := " 🬀🬁🬂🬏🬐🬑🬒🬞🬟🬠🬡🬭🬮🬯🬰"
+	Stdout:write("\e[34m")
+	for X in 1 .. MaxWidth do
+		Stdout:write(Blocks[Grid[1, X] + 1])
+	end
+	Stdout:write("\n")
+	for Y, Row in Rows do
+		let Padding := (MaxWidth - (3 * sum(Row, :length)) - (2 * Row:length)) div 2
+		for I in 1 .. Padding do Stdout:write(" ") end
+		for Word in Row do
+			Stdout:write('▐\e[7m{Word[1]}\e[27m▌')
+			for Letter in Word skip 1 do
+				Stdout:write('▐\e[7m{Letter}\e[27m▌')
+			end
+			Stdout:write("  ")
+		end
+		Stdout:write("\n")
+		for X in 1 .. MaxWidth do
+			Stdout:write(Blocks[Grid[Y + 1, X] + 1])
+		end
+		Stdout:write("\n")
+	end
+end
+
+let Words := list(Args[2]:upper /  " ", list)
+
+display(Words, 81)
+display2(Words, 81)
