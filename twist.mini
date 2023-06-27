@@ -83,11 +83,18 @@ let Blanks := list(1 .. BySize:size; I) '\e[34m{sum(1 .. I;) "."}\e[0m'
 random::seed(time():nsec)
 loop
 	Stdout:write("Enter word size: ")
-	let Size := integer(Stdin:read:trim)
-	let Sorted := BySize[Size]:random or exit
+	let (Min, Max) := with Size := Stdin:read:trim do
+		if let Match := Size % r"([0-9]+)-([0-9]+)" then
+			(integer(Match[2]), integer(Match[3]))
+		else
+			(3, integer(Size))
+		end
+	end
+	let Sorted := BySize[Max]:random or exit
 	let Length := Sorted:length
 	let Words := {}
 	for SubWord in subwords(Sorted) do
+		SubWord:length >= Min or next
 		Words:grow(WordSets[SubWord] => (2, 0))
 	end
 	for Word, Blank in Words do
@@ -133,6 +140,9 @@ loop
 			Guess := ""
 		case "" do
 			Letters:shuffle
+		case ">" do
+			Letters:sort
+			Guess := ""
 		else
 			if Guess != Words[Guess] then
 				Words[Guess] := '\e[32m{Guess}\e[0m'

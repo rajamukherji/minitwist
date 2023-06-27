@@ -26,52 +26,9 @@ for Name in Args skip 3 do
 end
 Players[-1]:next := Players[1]
 
-fun display(Words, MaxWidth) do
-	Stdout:write('\e[2J\e[H')
-	let Rows := [[]]
-	var Row := Rows[1]
-	var Width := 0
-	for Word in Words do
-		if Width + (Word:length * 4 + 1) > MaxWidth then
-			Rows:put(Row := [])
-			Width := 0
-		end
-		Row:put(Word)
-		Width := old + (Word:length * 4 + 1)
-	end
-	for Row in Rows do
-		let Padding := (MaxWidth - (4 * sum(Row, :length)) - Row:length) div 2
-		for I in 1 .. Padding do Stdout:write(" ") end
-		for Word in Row do
-			Stdout:write("┌───")
-			for Letter in Word skip 1 do
-				Stdout:write("┬───")
-			end
-			Stdout:write("┐ ")
-		end
-		Stdout:write("\n")
-		for I in 1 .. Padding do Stdout:write(" ") end
-		for Word in Row do
-			Stdout:write('│ {Word[1]} ')
-			for Letter in Word skip 1 do
-				Stdout:write('│ {Letter} ')
-			end
-			Stdout:write("│ ")
-		end
-		Stdout:write("\n")
-		for I in 1 .. Padding do Stdout:write(" ") end
-		for Word in Row do
-			Stdout:write("└───")
-			for Letter in Word skip 1 do
-				Stdout:write("┴───")
-			end
-			Stdout:write("┘ ")
-		end
-		Stdout:write("\n")
-	end
-end
-
-fun display2(Words, MaxWidth) do
+fun display(Phrase, MaxWidth) do
+	let Words := list(Phrase split 1, list(_, _[2]))
+	print('Words = {Words}\n')
 	:>Stdout:write('\e[2J\e[H')
 	let Rows := [[]]
 	var Row := Rows[1]
@@ -125,9 +82,48 @@ fun display2(Words, MaxWidth) do
 		end
 		Stdout:write("\n")
 	end
+	for Player in Players do
+		Stdout:write('\e[32m{Player:name}\e[0m: {Player:score}\t')
+	end
 end
 
-let Words := list(Args[2]:upper /  " ", list)
+random::seed(time():nsec)
+var Player := Players[1]
+for Round in 1 .. NumRounds do
+	let (Phrase, Category) := ("The lazy brown fox jumped over the cow":upper, "Test")
+	let Blank := list(Phrase; Letter) Letter != " " and (Letter, " ")
+	var Status := ""
+	loop
+		display(Blank, 81)
+		Stdout:write("\n")
+		Stdout:write(Status)
+		Stdout:write('\e[32m{Player:name}\e[0m enter letter or solve: ')
+		for Slot in Blank do
+			if Slot and Slot[2] != " " and Slot[2] != Slot[1] then
+				Slot := (Slot[1], Slot[1])
+			end
+		end
+		let Guess := Stdin:read:trim:upper
+		print('Guess = {Guess}\n')
+		switch Guess: string
+		case r"^[BCDFGHJKLMNPQRSTVWXYZ]$" do
+			var Count := 0
+			for Slot in Blank do
+				if Slot = ((Guess, " ")) then
+					Count := old + 1
+					Slot := (Guess, '\e[43m{Guess}\e[0m\e[34m')
+				end
+			end
+			if Count > 0 then
+				Status := '{Count} {Guess}\'s found!\n'
+				Player:score := old + (Count * 100)
+			else
+				Status := 'No more {Guess}\'s found!\n'
+				Player := old:next
+			end
+		case r"^[AEIOU]$" do
+		else
 
-display(Words, 81)
-display2(Words, 81)
+		end
+	end
+end
