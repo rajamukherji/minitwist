@@ -1,0 +1,58 @@
+def (Stdout) in import("io/terminal")
+
+fun solve(Target, Inputs) do
+	let N := Inputs:length
+	let MM := 2 ^ N - 1
+	let Found := list(1 .. (MM - 1), /map)
+	let Queue := {}
+
+	for I, X in Inputs do
+		X = Target and ret X
+		Queue[1 << (I - 1)] := {X is X}
+	end
+
+	print('Queue = {Queue}\n')
+
+	loop
+		let (M1, X1s) := while Queue:pop2
+		print('#Queue = {Queue:size}, M1 = {M1}, #Xs = {X1s:size}\n')
+		let M2s := list(1 .. MM ->? fun(M2) M1 /\ M2 = 0)
+		let Found1 := Found[M1]
+		if let E1 := X1s[Target] then
+			ret E1
+		end
+		M1 = MM and next
+		for X1, E1 in X1s do
+			X1 = Target and ret E1
+			if Found1:missing(X1, fun E1) then
+				for M2 in M2s do
+					let M := M1 \/ M2
+					let Xs := Queue[M, /map]
+					for X2, E2 in Found[M2] do
+						Found1[X1 + X2] or Xs:missing(X1 + X2;) '({E1} + {E2})'
+						if X1 > X2 then
+							Found1[X1 - X2] or Xs:missing(X1 - X2;) '({E1} - {E2})'
+						elseif X2 > X1 then
+							Found1[X2 - X1] or Xs:missing(X2 - X1;) '({E2} - {E1})'
+						end
+						if X1 != 1 and X2 != 1 then
+							Found1[X1 * X2] or Xs:missing(X1 * X2;) '({E1} * {E2})'
+							X2 | X1 and (Found1[X1 / X2] or Xs:missing(X1 / X2;) '({E1} / {E2})')
+							X1 | X2 and (Found1[X2 / X1] or Xs:missing(X2 / X1;) '({E2} / {E1})')
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+let Target := integer(Args[-1])
+let Inputs := list(Args[1, -1], integer)
+
+if let Solution := solve(Target, Inputs) then
+	Stdout:write('{Inputs}\n')
+	Stdout:write(Target, " = ", Solution, "\n")
+else
+	Stdout:write("No solution found\n")
+end
