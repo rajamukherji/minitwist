@@ -17,22 +17,21 @@ for Sorted in key(WordSets) do
 	BySize[Sorted:length, /list]:put(Sorted)
 end
 
-fun num_cols(Words) do
+fun num_rows(Words) do
 	let Width := Stdout:winsize[1]
 	:>print('Width = {Width} First word = {first(key(Words)):length}')
-	for N in Width div first(key(Words)):length .. 1 by -1 do
-		let NumRows := (Words:size + N - 1) div N
+	for NumRows in 1 .. Words:size do
 		let Rows := list(1 .. NumRows, /map)
-		let ColSizes := list(1 .. N;) 0
+		let ColSizes := {}
 		for Word, Blank in Words; I in &(1 .. NumRows) do
 			let Row := Rows[I]
 			let Length := Word:length
 			Row[Word] := Blank
-			ColSizes[Row:size] := old max Length
+			ColSizes[Row:size, fun 0] := old max Length
 		end
 		:>print(' {N} -> {sum(ColSizes) + (3 * Rows[1]:size) + 1}')
 		if sum(ColSizes) + (3 * Rows[1]:size) + 1 < Width then
-			ret N
+			ret NumRows
 		end
 	end
 	ret 1
@@ -41,15 +40,14 @@ on Error do
 end
 
 fun display(Words) do
-	let N := num_cols(Words)
-	let NumRows := (Words:size + N - 1) div N
+	let NumRows := num_rows(Words)
 	let Rows := list(1 .. NumRows, /map)
-	let ColSizes := list(1 .. N;) 0
+	let ColSizes := {}
 	for Word, Blank in Words; I in &(1 .. NumRows) do
 		let Row := Rows[I]
 		let Length := Word:length
 		Row[Word] := Blank
-		ColSizes[Row:size] := old max Length
+		ColSizes[Row:size, fun 0] := old max Length
 	end
 	let NumCols := Rows[1]:size
 	Stdout:write("\n ╭─")
